@@ -36,16 +36,13 @@ debug-tabnet: ## Run training by TabNet debug mode
 early-stop: ## Abort training gracefully
 	@touch abort-training.flag
 
-benchmark: ## Benchmark some source
-	@python benchmark.py
-
 push: clean-build ## Push notebook
 	@rm -f ./notebooks/ump-inference.ipynb
 	@python encode.py ./src ./config
 	@cd ./notebooks/ && \
 		kaggle kernels push
 
-clean: clean-build clean-pyc clean-training ## Remove all build and python artifacts
+clean: clean-build clean-pyc clean-test clean-training ## Remove all build and python artifacts
 
 clean-build: ## Remove build artifacts
 	@rm -fr build/
@@ -60,17 +57,18 @@ clean-pyc: ## Remove python artifacts
 	@find . -name '*~' -exec rm -f {} +
 	@find . -name '__pycache__' -exec rm -fr {} +
 
+clean-test: ## Remove test artifacts
+	@rm -rf .pytest_cache/
+	@rm -rf tests/preprocess
+	@rm -rf tests/features
+
 clean-training: ## Remove training artifacts
 	@rm -rf ../outputs ../multirun abort-training.flag
 
 clean-preprocess:  ## Remove preprocess artifacts
 	@rm -rf ../inputs/preprocess/*.{pkl,npy}
-	@rm -rf tests/preprocess
-	@rm -rf tests/features
 
 test: ## Run tests
-	@rm -rf tests/preprocess
-	@rm -rf tests/features
 	@pytest
 
 help: ## Show this help
