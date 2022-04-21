@@ -58,7 +58,7 @@ def main(c):
         if c.settings.debug or single_run:
             break
 
-    oof_df.to_feather("oof_df.f")
+    oof_df.reset_index(drop=True).to_feather("oof_df.f")
     # oof_df[["PassengerId", c.params.label_name, "preds", "fold"]].reset_index(drop=True).to_feather("oof_df.f")
 
     log.info("========== final result ==========")

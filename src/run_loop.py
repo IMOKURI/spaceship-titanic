@@ -19,7 +19,7 @@ from scipy.optimize import minimize
 
 from .feature_store import Store
 from .get_score import get_score, optimize_function
-from .make_dataset import make_dataloader, make_dataset
+from .make_dataset import make_dataloader, make_dataset, make_dataset_nn
 from .make_feature import make_feature
 from .make_fold import train_test_split
 from .make_loss import make_criterion, make_optimizer, make_scheduler
@@ -123,6 +123,7 @@ def train_fold_lightgbm(c, df, fold, tuning=False):
         method="Nelder-Mead",
     )
     log.info(f"optimize result. -> \n{minimize_result}")
+    wandb.log({"border": minimize_result["x"].item(), "fold": fold})
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
@@ -173,6 +174,7 @@ def train_fold_xgboost(c, df, fold):
         method="Nelder-Mead",
     )
     log.info(f"optimize result. -> \n{minimize_result}")
+    wandb.log({"border": minimize_result["x"].item(), "fold": fold})
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
@@ -228,6 +230,7 @@ def train_fold_tabnet(c, df, fold):
         method="Nelder-Mead",
     )
     log.info(f"optimize result. -> \n{minimize_result}")
+    wandb.log({"border": minimize_result["x"].item(), "fold": fold})
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
@@ -241,8 +244,8 @@ def train_fold_nn(c, input, fold, device):
     # ====================================================
     # Data Loader
     # ====================================================
-    train_ds = make_dataset(c, train_folds)
-    valid_ds = make_dataset(c, valid_folds)
+    train_ds = make_dataset_nn(c, train_folds)
+    valid_ds = make_dataset_nn(c, valid_folds)
 
     train_loader = make_dataloader(c, train_ds, shuffle=True, drop_last=True)
     valid_loader = make_dataloader(c, valid_ds, shuffle=False, drop_last=False)
@@ -345,6 +348,8 @@ def inference_lightgbm(df, models):
     for n, model in enumerate(models):
         preds = model.predict(df[feature_cols].values)
         predictions[:, n] = preds.reshape(-1)
+
+        # TODO: 二値分類のときのボーダーを model 変数の中に持たせる。
 
     return predictions
 
