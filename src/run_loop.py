@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 optuna.logging.set_verbosity(optuna.logging.ERROR)
 
 
-def train_fold_lightgbm(c, df, fold):
+def train_fold_lightgbm(c, df, fold, tuning=False):
     train_df, valid_df = train_test_split(c, df, fold)
     train_store = Store.train(c, train_df, "train", fold=fold)
     valid_store = Store.train(c, valid_df, "valid", fold=fold)
@@ -84,35 +84,38 @@ def train_fold_lightgbm(c, df, fold):
         # wandb_callback(),
     ]
 
-    # booster = lgb.train(
-    #     train_set=train_ds,
-    #     valid_sets=[train_ds, valid_ds],
-    #     valid_names=["train", "valid"],
-    #     params=lgb_params,
-    #     num_boost_round=10000,
-    #     callbacks=callbacks,
-    # )
+    if tuning:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            model = opt_lgb.train(
+                train_set=train_ds,
+                valid_sets=[train_ds, valid_ds],
+                valid_names=["train", "valid"],
+                params=lgb_params,
+                num_boost_round=10000,
+                callbacks=callbacks,
+                optuna_seed=c.params.seed,
+                verbose_eval=None,
+            )
+        log.info(f"lightgbm tuning result. -> \n{model.params}")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        booster = opt_lgb.train(
+    else:
+        model = lgb.train(
             train_set=train_ds,
             valid_sets=[train_ds, valid_ds],
             valid_names=["train", "valid"],
             params=lgb_params,
             num_boost_round=10000,
             callbacks=callbacks,
-            optuna_seed=c.params.seed,
-            verbose_eval=None,
         )
-    log.info(f"lightgbm tuning result. -> \n{booster.params}")
 
     os.makedirs(f"fold{fold}", exist_ok=True)
-    joblib.dump(booster, f"fold{fold}/lightgbm.pkl")
+    joblib.dump(model, f"fold{fold}/lightgbm.pkl")
     # booster.save_model(f"fold{fold}/lightgbm.pkl", num_iteration=booster.best_iteration)
     # log_summary(booster, save_model_checkpoint=True)
 
-    valid_folds["base_preds"] = booster.predict(valid_raw_ds, num_iteration=booster.best_iteration)
+    # valid_folds["preds"] = model.predict(valid_raw_ds, num_iteration=model.best_iteration)
+    valid_folds["base_preds"] = model.predict(valid_raw_ds, num_iteration=model.best_iteration)
 
     minimize_result = minimize(
         optimize_function(c, valid_folds[c.params.label_name].to_numpy(), valid_folds["base_preds"].to_numpy()),
@@ -123,16 +126,34 @@ def train_fold_lightgbm(c, df, fold):
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
-    return valid_folds, 0, booster.best_score["valid"]["binary_logloss"]  # ["rmse"]
+    return valid_folds, 0, model.best_score["valid"]["binary_logloss"]  # ["rmse"]
 
 
 def train_fold_xgboost(c, df, fold):
-    train_folds, valid_folds = train_test_split(c, df, fold)
+    train_df, valid_df = train_test_split(c, df, fold)
+    train_store = Store.train(c, train_df, "train", fold=fold)
+    valid_store = Store.train(c, valid_df, "valid", fold=fold)
+    train_folds = make_feature(
+        train_df,
+        train_store,
+        feature_list=c.params.feature_set,
+        feature_store=c.settings.dirs.feature,
+        with_target=True,
+        fallback_to_none=False,
+    )
+    valid_folds = make_feature(
+        valid_df,
+        valid_store,
+        feature_list=c.params.feature_set,
+        feature_store=c.settings.dirs.feature,
+        with_target=True,
+        fallback_to_none=False,
+    )
     train_ds, train_labels, valid_ds, valid_labels = make_dataset(c, train_folds, valid_folds)
 
-    clf = make_model_xgboost(c, train_ds)
+    model = make_model_xgboost(c, train_ds)
 
-    clf.fit(
+    model.fit(
         train_ds,
         train_labels,
         eval_set=[(valid_ds, valid_labels)],
@@ -141,11 +162,21 @@ def train_fold_xgboost(c, df, fold):
     )
 
     os.makedirs(f"fold{fold}", exist_ok=True)
-    clf.save_model(f"fold{fold}/xgboost.pkl")
+    model.save_model(f"fold{fold}/xgboost.pkl")
 
-    valid_folds["preds"] = clf.predict(valid_ds)
+    # valid_folds["preds"] = model.predict(valid_ds)
+    valid_folds["base_preds"] = model.predict(valid_ds)
 
-    return valid_folds, 0, clf.best_score
+    minimize_result = minimize(
+        optimize_function(c, valid_folds[c.params.label_name].to_numpy(), valid_folds["base_preds"].to_numpy()),
+        np.array([0.5]),
+        method="Nelder-Mead",
+    )
+    log.info(f"optimize result. -> \n{minimize_result}")
+
+    valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
+
+    return valid_folds, 0, model.best_score
 
 
 def train_fold_tabnet(c, df, fold):

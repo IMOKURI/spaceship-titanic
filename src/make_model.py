@@ -49,8 +49,9 @@ def make_model_xgboost(c, ds=None, model_path=None):
 
     xgb_params = dict(
         n_estimators=10000,
-        learning_rate=0.05,
-        eval_metric="rmse",
+        # learning_rate=0.05,
+        objective="binary:logistic",  # "reg:squarederror",
+        eval_metric="logloss",  # "rmse",
         random_state=c.params.seed,
         tree_method="gpu_hist",
     )  # type: dict[str, Any]
@@ -63,6 +64,7 @@ def make_model_xgboost(c, ds=None, model_path=None):
     #     xgb_params["scheduler_fn"] = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
 
     clf = xgb.XGBRegressor(**xgb_params)
+    # clf = xgb.XGBClassifier(**xgb_params)
 
     if model_path is not None:
         clf.load_model(model_path)
