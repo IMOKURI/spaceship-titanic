@@ -3,16 +3,19 @@ import logging
 import os
 import time
 import traceback
+import warnings
 
 import joblib
 import lightgbm as lgb
 import numpy as np
+import optuna
+import optuna.integration.lightgbm as opt_lgb
 import pandas as pd
 import torch
 import torch.cuda.amp as amp
 import wandb
 import xgboost as xgb
-from scipy.optimize import minimize, minimize_scalar
+from scipy.optimize import minimize
 
 from .feature_store import Store
 from .get_score import get_score, optimize_function
@@ -28,6 +31,7 @@ from .utils import AverageMeter, timeSince
 
 
 log = logging.getLogger(__name__)
+optuna.logging.set_verbosity(optuna.logging.ERROR)
 
 
 def train_fold_lightgbm(c, df, fold):
@@ -56,9 +60,9 @@ def train_fold_lightgbm(c, df, fold):
 
     lgb_params = {
         "objective": "binary",  # "regression",
+        "metric": "binary_logloss",  # "rmse",
         "boosting": "gbdt",
         # "extra_trees": True,  # https://note.com/j26/n/n64d9c37167a6
-        "metric": "binary_logloss",  # "rmse",
         # "learning_rate": 0.05,
         # "min_data_in_leaf": 120,
         # "feature_fraction": 0.7,
@@ -68,25 +72,40 @@ def train_fold_lightgbm(c, df, fold):
         # "num_leaves": 96,
         # "max_depth": 12,
         # "drop_rate": 0.0,
+        "verbosity": -1,
         "seed": c.params.seed,
     }
 
-    eval_result = {}
+    # eval_result = {}
     callbacks = [
-        lgb.log_evaluation(period=c.settings.print_freq),
-        lgb.record_evaluation(eval_result),
-        lgb.early_stopping(stopping_rounds=100),
+        lgb.early_stopping(stopping_rounds=100, verbose=False),
+        lgb.log_evaluation(period=-1),
+        # lgb.record_evaluation(eval_result),
         # wandb_callback(),
     ]
 
-    booster = lgb.train(
-        train_set=train_ds,
-        valid_sets=[train_ds, valid_ds],
-        valid_names=["train", "valid"],
-        params=lgb_params,
-        num_boost_round=10000,
-        callbacks=callbacks,
-    )
+    # booster = lgb.train(
+    #     train_set=train_ds,
+    #     valid_sets=[train_ds, valid_ds],
+    #     valid_names=["train", "valid"],
+    #     params=lgb_params,
+    #     num_boost_round=10000,
+    #     callbacks=callbacks,
+    # )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        booster = opt_lgb.train(
+            train_set=train_ds,
+            valid_sets=[train_ds, valid_ds],
+            valid_names=["train", "valid"],
+            params=lgb_params,
+            num_boost_round=10000,
+            callbacks=callbacks,
+            optuna_seed=c.params.seed,
+            verbose_eval=None,
+        )
+    log.info(f"lightgbm tuning result. -> \n{booster.params}")
 
     os.makedirs(f"fold{fold}", exist_ok=True)
     joblib.dump(booster, f"fold{fold}/lightgbm.pkl")
@@ -100,7 +119,7 @@ def train_fold_lightgbm(c, df, fold):
         np.array([0.5]),
         method="Nelder-Mead",
     )
-    log.info(f"optimize result. -> {minimize_result}")
+    log.info(f"optimize result. -> \n{minimize_result}")
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
