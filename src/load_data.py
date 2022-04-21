@@ -36,12 +36,11 @@ class InputData:
             # if c.settings.debug:
             #     df = sample_for_debug(c, df)
 
-            if stem in ["train", "test"]:
-                df = preprocess(c, df, stem)
+            if stem in ["train"]:
+                df = preprocess(c, df)
 
             if stem == "train" and use_fold:
                 df = make_fold(c, df)
-                c.params.feature_set.append("f990")
 
             df = reduce_mem_usage(df)
 

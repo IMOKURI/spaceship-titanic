@@ -12,9 +12,10 @@ import torch
 import torch.cuda.amp as amp
 import wandb
 import xgboost as xgb
+from scipy.optimize import minimize, minimize_scalar
 
 from .feature_store import Store
-from .get_score import get_score
+from .get_score import get_score, optimize_function
 from .make_dataset import make_dataloader, make_dataset
 from .make_feature import make_feature
 from .make_fold import train_test_split
@@ -30,17 +31,28 @@ log = logging.getLogger(__name__)
 
 
 def train_fold_lightgbm(c, df, fold):
-    store = Store.empty()
-    pred_df = make_feature(
-        df,
-        store,
+    train_df, valid_df = train_test_split(c, df, fold)
+    train_store = Store.train(c, train_df, "train", fold=fold)
+    valid_store = Store.train(c, valid_df, "valid", fold=fold)
+    train_folds = make_feature(
+        train_df,
+        train_store,
         feature_list=c.params.feature_set,
         feature_store=c.settings.dirs.feature,
         with_target=True,
         fallback_to_none=False,
     )
-    train_folds, valid_folds = train_test_split(c, pred_df, fold)
+    valid_folds = make_feature(
+        valid_df,
+        valid_store,
+        feature_list=c.params.feature_set,
+        feature_store=c.settings.dirs.feature,
+        with_target=True,
+        fallback_to_none=False,
+    )
     train_ds, _, valid_ds, valid_raw_ds = make_dataset(c, train_folds, valid_folds, lightgbm=True)
+    assert type(train_ds) == lgb.basic.Dataset
+    assert type(valid_ds) == lgb.basic.Dataset
 
     lgb_params = {
         "objective": "binary",  # "regression",
@@ -81,7 +93,16 @@ def train_fold_lightgbm(c, df, fold):
     # booster.save_model(f"fold{fold}/lightgbm.pkl", num_iteration=booster.best_iteration)
     # log_summary(booster, save_model_checkpoint=True)
 
-    valid_folds["preds"] = booster.predict(valid_raw_ds, num_iteration=booster.best_iteration)
+    valid_folds["base_preds"] = booster.predict(valid_raw_ds, num_iteration=booster.best_iteration)
+
+    minimize_result = minimize(
+        optimize_function(c, valid_folds[c.params.label_name].to_numpy(), valid_folds["base_preds"].to_numpy()),
+        np.array([0.5]),
+        method="Nelder-Mead",
+    )
+    log.info(f"optimize result. -> {minimize_result}")
+
+    valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
     return valid_folds, 0, booster.best_score["valid"]["binary_logloss"]  # ["rmse"]
 

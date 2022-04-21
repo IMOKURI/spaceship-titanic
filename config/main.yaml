@@ -75,7 +75,12 @@ params:
   label_name: Transported
   use_feature: True
   feature_set:
-    - "f000"  # f000_initial_features
+    - "f000" # f000_passenger_id
+    - "f001" # f001_home_planet
+    - "f002" # f002_destination
+    - "f003" # f003_cryo_sleep
+    - "f004" # f004_vip
+    - "f005" # f005_age
   dataset: spaceship_1
   model: spaceship_1
   model_input: 300

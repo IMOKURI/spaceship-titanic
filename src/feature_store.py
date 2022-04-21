@@ -1,87 +1,124 @@
-# import os
-# import pickle
-from typing import Any, List, Optional, Union
+import logging
+from typing import Any, Optional
 
-# import faiss
-# import numpy as np
-# import pandas as pd
+import numpy as np
+import pandas as pd
 from nptyping import NDArray
 from omegaconf.dictconfig import DictConfig
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder, PowerTransformer, StandardScaler
 
-# from .utils import catch_everything_in_kaggle
+from .preprocess import transform_data
+from .utils import catch_everything_in_kaggle
 
-# from ppca import PPCA
-# from sklearn.decomposition import PCA
-# from sklearn.neighbors import NearestNeighbors
-# from sklearn.preprocessing import PowerTransformer, StandardScaler
+log = logging.getLogger(__name__)
 
 
 class Store:
-    def __init__(
-        self,
-        # sampling_array: Optional[NDArray[(Any, Any), Any]] = None,
-        # scalers: Optional[List[Union[StandardScaler, PowerTransformer]]] = None,
-        # pca: Optional[Union[PCA, PPCA]] = None,
-        # nearest_neighbors: Optional[NearestNeighbors] = None,
-    ):
-        ...
-        # self.sampling_array = sampling_array
-        # self.scalers = scalers
-        # self.pca = pca
-        # self.nearest_neighbors = nearest_neighbors
+    def __init__(self, feature_df: Optional[pd.DataFrame] = None):
+        self.feature_df = feature_df
 
     @classmethod
     def empty(cls) -> "Store":
         return cls()
 
     @classmethod
-    def train(cls, c: DictConfig, training_fold: Optional[int] = None) -> "Store":
+    def train(
+        cls,
+        c: DictConfig,
+        df: pd.DataFrame,
+        df_name: str,
+        is_training: bool = True,
+        fold: Optional[int] = -1,
+    ) -> "Store":
         """
         TODO: c.params.preprocess によって、ロードするものを変更する。
         """
+        log.info("Setup store with preprocess.")
         instance = cls.empty()
 
-        # sampling_array_path = os.path.join(c.settings.dirs.preprocess, f"sampling_pca{c.params.pca_n_components}.npy")
+        features = []
+        cols = []
 
-        # standard_scaler_0_path = os.path.join(c.settings.dirs.preprocess, "standard_scaler_f_0.pkl")
-        # pca_path = os.path.join(c.settings.dirs.preprocess, f"pca_{c.params.pca_n_components}.pkl")
+        f_home_planet = transform_data(c, f"{df_name}-home_planet_{fold}.npy", df["HomePlanet"].to_numpy(), OrdinalEncoder())
+        features.append(f_home_planet)
+        cols += ["HomePlanet"]
 
-        # if training_fold is None:
-        #     nearest_neighbors_path = os.path.join(c.settings.dirs.preprocess, "faiss_ivfpq.index")
-        # else:
-        #     nearest_neighbors_path = os.path.join(c.settings.dirs.preprocess, f"faiss_ivfpq_{training_fold}.index")
-        #
-        # if "faiss_ivfpq" in c.params.preprocess and os.path.exists(training_features_path):
-        #     instance.training_features = np.load(training_features_path)
-        #
-        # if "faiss_ivfpq" in c.params.preprocess and os.path.exists(training_targets_path):
-        #     instance.training_targets = np.load(training_targets_path)
+        f_destination = transform_data(c, f"{df_name}-destination_{fold}.npy", df["Destination"].to_numpy(), OrdinalEncoder())
+        features.append(f_destination)
+        cols += ["Destination"]
 
-        # if os.path.exists(sampling_array_path):
-        #     instance.sampling_array = np.load(sampling_array_path)
+        f_cryo_sleep = df["CryoSleep"].fillna(False).astype(np.int8).to_numpy().reshape(-1, 1)
+        features.append(f_cryo_sleep)
+        cols.append("CryoSleep")
 
-        # if os.path.exists(standard_scaler_0_path):
-        #     scalers = []
-        #     for n in range(300):
-        #         scaler = pickle.load(open(standard_scaler_0_path.replace("0", str(n)), "rb"))
-        #         scalers.append(scaler)
-        #     instance.scalers = scalers
+        f_vip = df["VIP"].fillna(False).astype(np.int8).to_numpy().reshape(-1, 1)
+        features.append(f_vip)
+        cols.append("VIP")
 
-        # if os.path.exists(pca_path):
-        #     instance.pca = pickle.load(open(pca_path, "rb"))
+        # TODO: Cabin
+        """
+        # Cabin
+        steps = [
+            ("imputer", SimpleImputer(strategy="constant", fill_value="/")),
+            ("cabin_deck", SplitSlashZero()),
+            ("ordinal", OrdinalEncoder()),
+            ("power", MinMaxScaler()),
+        ]
+        fit_column_transformer(c, steps, ["Cabin"], "transformer_cabin_deck.pkl", df)
 
-        # instance.nearest_neighbors = pickle.load(open(nearest_neighbors_path, "rb"))
+        steps = [
+            ("imputer", SimpleImputer(strategy="constant", fill_value="/0")),
+            ("cabin_num", SplitSlashOne()),
+            ("to_float", ToFloat()),
+            ("power", MinMaxScaler()),
+        ]
+        fit_column_transformer(c, steps, ["Cabin"], "transformer_cabin_num.pkl", df)
 
-        # if "faiss_ivfpq" in c.params.preprocess and os.path.exists(nearest_neighbors_path):
-        #
-        #     index_cpu = faiss.read_index(nearest_neighbors_path)
-        #
-        #     try:
-        #         devices = c.settings.gpus.split(",")
-        #         resources = [faiss.StandardGpuResources() for _ in devices]
-        #         instance.nearest_neighbors = faiss.index_cpu_to_gpu_multiple_py(resources, index_cpu, gpus=devices)
-        #     except Exception:
-        #         instance.nearest_neighbors = faiss.index_cpu_to_all_gpus(index_cpu)
+        steps = [
+            ("cabin_side", SplitSlashLast()),
+            ("onehot", OneHotEncoder()),
+        ]
+        fit_column_transformer(c, steps, ["Cabin"], "transformer_cabin_side.pkl", df)
+
+        """
+
+        f_age = transform_data(c, f"{df_name}-age_{fold}.npy", df["Age"].fillna(df["Age"].median()).to_numpy(), MinMaxScaler())
+        features.append(f_age)
+        cols += ["Age"]
+
+        f_room_service = transform_data(
+            c, f"{df_name}-room_service_{fold}.npy", df["RoomService"].fillna(0).to_numpy(), MinMaxScaler()
+        )
+        features.append(f_room_service)
+        cols += ["RoomService"]
+
+        f_food_court = transform_data(c, f"{df_name}-food_court_{fold}.npy", df["FoodCourt"].fillna(0).to_numpy(), MinMaxScaler())
+        features.append(f_food_court)
+        cols += ["FoodCourt"]
+
+        f_shopping_mall = transform_data(
+            c, f"{df_name}-shopping_mall_{fold}.npy", df["ShoppingMall"].fillna(0).to_numpy(), MinMaxScaler()
+        )
+        features.append(f_shopping_mall)
+        cols += ["ShoppingMall"]
+
+        f_spa = transform_data(c, f"{df_name}-spa_{fold}.npy", df["Spa"].fillna(0).to_numpy(), MinMaxScaler())
+        features.append(f_spa)
+        cols += ["Spa"]
+
+        f_vr_deck = transform_data(c, f"{df_name}-vr_deck_{fold}.npy", df["VRDeck"].fillna(0).to_numpy(), MinMaxScaler())
+        features.append(f_vr_deck)
+        cols += ["VRDeck"]
+
+        if is_training:
+            f_transported = df["Transported"].astype(np.int8).to_numpy().reshape(-1, 1)
+            features.append(f_transported)
+            cols.append("Transported")
+
+        for f in features:
+            log.debug(f"{df_name}-feature shape: {f.shape}")
+        instance.feature_df = pd.DataFrame(np.hstack(tuple(features)), columns=cols)
 
         return instance
 

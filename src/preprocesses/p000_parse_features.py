@@ -18,11 +18,6 @@ class ToFloat(BaseTransformer):
                     return None
             return np.vectorize(func)(X)
 
-    def get_feature_names_out(self, input_features=None):
-        if input_features is not None:
-            return input_features
-        return np.array(["float_0"])
-
 
 class SplitUnderBarZero(BaseTransformer):
     def transform(self, X):
@@ -33,11 +28,6 @@ class SplitUnderBarZero(BaseTransformer):
         if isinstance(X, np.ndarray):
             func = lambda x: x.split("_")[0] if x is not None else x
             return np.vectorize(func)(X)
-
-    def get_feature_names_out(self, input_features=None):
-        if input_features is not None:
-            return input_features
-        return np.array(["split_under_bar_zero_0"])
 
 
 class SplitSlashZero(BaseTransformer):
@@ -50,11 +40,6 @@ class SplitSlashZero(BaseTransformer):
             func = lambda x: x.split("/")[0] if x is not None else x
             return np.vectorize(func)(X)
 
-    def get_feature_names_out(self, input_features=None):
-        if input_features is not None:
-            return input_features
-        return np.array(["split_slash_zero_0"])
-
 
 class SplitSlashOne(BaseTransformer):
     def transform(self, X):
@@ -66,11 +51,6 @@ class SplitSlashOne(BaseTransformer):
             func = lambda x: x.split("/")[1] if x is not None else x
             return np.vectorize(func)(X)
 
-    def get_feature_names_out(self, input_features=None):
-        if input_features is not None:
-            return input_features
-        return np.array(["split_slash_one_0"])
-
 
 class SplitSlashLast(BaseTransformer):
     def transform(self, X):
@@ -81,8 +61,3 @@ class SplitSlashLast(BaseTransformer):
         if isinstance(X, np.ndarray):
             func = lambda x: x.split("/")[-1] if x is not None else x
             return np.vectorize(func)(X)
-
-    def get_feature_names_out(self, input_features=None):
-        if input_features is not None:
-            return input_features
-        return np.array(["split_slash_last_0"])

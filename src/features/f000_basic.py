@@ -4,32 +4,37 @@ import numpy as np
 
 from .base import Context, feature
 
-FEATURE_COLS = [
-    "PassengerId",
-    "HomePlanet_Earth",
-    "HomePlanet_Europa",
-    "HomePlanet_Mars",
-    "HomePlanet_nan",
-    "Destination_55 Cancri e",
-    "Destination_PSO J318.5-22",
-    "Destination_TRAPPIST-1e",
-    "Destination_nan",
-    "CryoSleep",
-    "VIP",
-    "Cabin_Deck",
-    "Cabin_Num",
-    "Cabin_Side_P",
-    "Cabin_Side_S",
-    "Cabin_Side_nan",
-    "Age",
-    "RoomService",
-    "FoodCourt",
-    "ShoppingMall",
-    "Spa",
-    "VRDeck",
-]
+
+@feature(["PassengerId"])
+def f000_passenger_id(ctx: Context) -> Dict[str, float]:
+    return ctx.base_df.loc[ctx.index, ["PassengerId"]].to_dict()
 
 
-@feature(FEATURE_COLS)
-def f000_initial_features(ctx: Context) -> Dict[str, float]:
-    return ctx.base_df.loc[ctx.index, FEATURE_COLS].to_dict()
+@feature(["HomePlanet"])
+def f001_home_planet(ctx: Context) -> Dict[str, float]:
+    assert ctx.store.feature_df is not None
+    return ctx.store.feature_df.loc[ctx.index, ["HomePlanet"]].to_dict()
+
+
+@feature(["Destination"])
+def f002_destination(ctx: Context) -> Dict[str, float]:
+    assert ctx.store.feature_df is not None
+    return ctx.store.feature_df.loc[ctx.index, ["Destination"]].to_dict()
+
+
+@feature(["CryoSleep"])
+def f003_cryo_sleep(ctx: Context) -> Dict[str, float]:
+    assert ctx.store.feature_df is not None
+    return ctx.store.feature_df.loc[ctx.index, ["CryoSleep"]].to_dict()
+
+
+@feature(["VIP"])
+def f004_vip(ctx: Context) -> Dict[str, float]:
+    assert ctx.store.feature_df is not None
+    return ctx.store.feature_df.loc[ctx.index, ["VIP"]].to_dict()
+
+
+@feature(["Age"])
+def f005_age(ctx: Context) -> Dict[str, float]:
+    assert ctx.store.feature_df is not None
+    return ctx.store.feature_df.loc[ctx.index, ["Age"]].to_dict()
