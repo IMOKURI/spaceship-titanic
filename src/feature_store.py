@@ -40,11 +40,15 @@ class Store:
         features = []
         cols = []
 
-        f_home_planet = transform_data(c, f"{df_name}-home_planet_{fold}.npy", df["HomePlanet"].to_numpy(), OrdinalEncoder())
+        f_home_planet = transform_data(
+            c, f"{df_name}-home_planet_{fold}.npy", df["HomePlanet"].to_numpy(), OrdinalEncoder()
+        )
         features.append(f_home_planet)
         cols += ["HomePlanet"]
 
-        f_destination = transform_data(c, f"{df_name}-destination_{fold}.npy", df["Destination"].to_numpy(), OrdinalEncoder())
+        f_destination = transform_data(
+            c, f"{df_name}-destination_{fold}.npy", df["Destination"].to_numpy(), OrdinalEncoder()
+        )
         features.append(f_destination)
         cols += ["Destination"]
 
@@ -83,7 +87,9 @@ class Store:
 
         """
 
-        f_age = transform_data(c, f"{df_name}-age_{fold}.npy", df["Age"].fillna(df["Age"].median()).to_numpy(), MinMaxScaler())
+        f_age = transform_data(
+            c, f"{df_name}-age_{fold}.npy", df["Age"].fillna(df["Age"].median()).to_numpy(), MinMaxScaler()
+        )
         features.append(f_age)
         cols += ["Age"]
 
@@ -93,7 +99,9 @@ class Store:
         features.append(f_room_service)
         cols += ["RoomService"]
 
-        f_food_court = transform_data(c, f"{df_name}-food_court_{fold}.npy", df["FoodCourt"].fillna(0).to_numpy(), MinMaxScaler())
+        f_food_court = transform_data(
+            c, f"{df_name}-food_court_{fold}.npy", df["FoodCourt"].fillna(0).to_numpy(), MinMaxScaler()
+        )
         features.append(f_food_court)
         cols += ["FoodCourt"]
 
@@ -107,7 +115,9 @@ class Store:
         features.append(f_spa)
         cols += ["Spa"]
 
-        f_vr_deck = transform_data(c, f"{df_name}-vr_deck_{fold}.npy", df["VRDeck"].fillna(0).to_numpy(), MinMaxScaler())
+        f_vr_deck = transform_data(
+            c, f"{df_name}-vr_deck_{fold}.npy", df["VRDeck"].fillna(0).to_numpy(), MinMaxScaler()
+        )
         features.append(f_vr_deck)
         cols += ["VRDeck"]
 

@@ -25,33 +25,10 @@ def test_features_f000_basic():
 
     ctx = Context(new_df, store, 0)
 
-    features = f000_initial_features(ctx)
+    features = f000_passenger_id(ctx)
 
     assert type(features) == dict
-    assert features == {
-        "PassengerId": "0001_01",
-        "Age": 0.49367088079452515,
-        "Cabin_Deck": 0.25,
-        "Cabin_Num": 0.0,
-        "Cabin_Side_P": 1.0,
-        "Cabin_Side_S": 0.0,
-        "Cabin_Side_nan": 0.0,
-        "CryoSleep": 0.0,
-        "Destination_55 Cancri e": 0.0,
-        "Destination_PSO J318.5-22": 0.0,
-        "Destination_TRAPPIST-1e": 1.0,
-        "Destination_nan": 0.0,
-        "FoodCourt": 0.0,
-        "HomePlanet_Earth": 0.0,
-        "HomePlanet_Europa": 1.0,
-        "HomePlanet_Mars": 0.0,
-        "HomePlanet_nan": 0.0,
-        "RoomService": 0.0,
-        "ShoppingMall": 0.0,
-        "Spa": 0.0,
-        "VIP": 0.0,
-        "VRDeck": 0.0,
-    }
+    assert features == {"PassengerId": "0001_01"}
 
 
 def test_features_f900_target():
@@ -69,6 +46,4 @@ def test_features_f900_target():
     features = f900_target(ctx)
 
     assert type(features) == dict
-    assert features == {
-        "Transported": 0.0,
-    }
+    assert features == {"Transported": 0.0}

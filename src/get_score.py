@@ -61,6 +61,8 @@ class TNPearson(Metric):
 
 def optimize_function(c, y_true, y_pred):
     assert c.params.scoring == "accuracy"
+
     def optimize_score(x):
         return -accuracy_score(y_true, y_pred > x)
+
     return optimize_score
