@@ -180,29 +180,58 @@ def train_fold_xgboost(c, df, fold):
 
 
 def train_fold_tabnet(c, df, fold):
-    train_folds, valid_folds = train_test_split(c, df, fold)
+    train_df, valid_df = train_test_split(c, df, fold)
+    train_store = Store.train(c, train_df, "train", fold=fold)
+    valid_store = Store.train(c, valid_df, "valid", fold=fold)
+    train_folds = make_feature(
+        train_df,
+        train_store,
+        feature_list=c.params.feature_set,
+        feature_store=c.settings.dirs.feature,
+        with_target=True,
+        fallback_to_none=False,
+    )
+    valid_folds = make_feature(
+        valid_df,
+        valid_store,
+        feature_list=c.params.feature_set,
+        feature_store=c.settings.dirs.feature,
+        with_target=True,
+        fallback_to_none=False,
+    )
     train_ds, train_labels, valid_ds, valid_labels = make_dataset(c, train_folds, valid_folds)
 
-    clf = make_model_tabnet(c, train_ds)
+    model = make_model_tabnet(c, train_ds)
 
-    clf.fit(
+    model.fit(
         train_ds,
         train_labels,
         eval_set=[(valid_ds, valid_labels)],
+        # eval_metric=["logloss"],
         max_epochs=10000,
         patience=100,
-        batch_size=1024 * 20,
-        virtual_batch_size=128 * 20,
+        # batch_size=1024 * 20,
+        # virtual_batch_size=128 * 20,
         num_workers=4,
         drop_last=True,
     )
 
     os.makedirs(f"fold{fold}", exist_ok=True)
-    clf.save_model(f"fold{fold}/tabnet")
+    model.save_model(f"fold{fold}/tabnet")
 
-    valid_folds["preds"] = clf.predict(valid_ds)
+    # valid_folds["preds"] = model.predict(valid_ds)
+    valid_folds["base_preds"] = model.predict(valid_ds)
 
-    return valid_folds, 0, clf.best_cost
+    minimize_result = minimize(
+        optimize_function(c, valid_folds[c.params.label_name].to_numpy(), valid_folds["base_preds"].to_numpy()),
+        np.array([0.5]),
+        method="Nelder-Mead",
+    )
+    log.info(f"optimize result. -> \n{minimize_result}")
+
+    valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
+
+    return valid_folds, 0, model.best_cost
 
 
 def train_fold_nn(c, input, fold, device):

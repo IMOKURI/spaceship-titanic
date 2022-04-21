@@ -24,10 +24,10 @@ train-tabnet: ## Run training by TabNet
 debug: ## Run training debug mode
 	@python train.py settings.debug=True hydra.verbose=True +settings.run_fold=1
 
-debug-lgb: clean-preprocess ## Run training by LightGBM debug mode
+debug-lgb: ## Run training by LightGBM debug mode
 	@python train.py settings.debug=True hydra.verbose=True params.training_method="lightgbm"
 
-debug-xgb: clean-preprocess ## Run training by XGBoost debug mode
+debug-xgb: ## Run training by XGBoost debug mode
 	@python train.py settings.debug=True hydra.verbose=True params.training_method="xgboost"
 
 debug-tabnet: ## Run training by TabNet debug mode

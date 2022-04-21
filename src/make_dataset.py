@@ -19,8 +19,8 @@ def make_dataset(c, train_df, valid_df, lightgbm=False):
     else:
         labels = [f"{c.params.label_name}_{n}" for n in range(c.params.n_class)]
 
-    train_labels = train_df[labels].values
-    valid_labels = valid_df[labels].values
+    train_labels = train_df[labels].to_numpy()
+    valid_labels = valid_df[labels].to_numpy()
 
     for col in ["PassengerId", "fold", "group_fold", "time_fold", c.params.label_name] + labels:
         try:
@@ -33,11 +33,11 @@ def make_dataset(c, train_df, valid_df, lightgbm=False):
         train_ds = lgb.Dataset(data=train_df, label=train_labels)
         valid_ds = lgb.Dataset(data=valid_df, label=valid_labels)
 
-        return train_ds, train_df.values, valid_ds, valid_df.values
+        return train_ds, train_df.to_numpy(), valid_ds, valid_df.to_numpy()
 
     else:
-        train_ds = train_df.values
-        valid_ds = valid_df.values
+        train_ds = train_df.to_numpy()
+        valid_ds = valid_df.to_numpy()
 
         return train_ds, train_labels, valid_ds, valid_labels
 
@@ -61,15 +61,15 @@ class BaseDataset(Dataset):
         if self.use_label:
             if c.params.model == "ump_ad_ae":
                 labels = [f"f_{n}" for n in range(c.params.n_class)]
-                self.labels = df[labels].values
-                self.features = df[labels].values
+                self.labels = df[labels].to_numpy()
+                self.features = df[labels].to_numpy()
                 return
             elif c.params.n_class == 1:
                 labels = [c.params.label_name]
-                self.labels = df[c.params.label_name].values
+                self.labels = df[c.params.label_name].to_numpy()
             else:
                 labels = [f"{c.params.label_name}_{n}" for n in range(c.params.n_class)]
-                self.labels = df[labels].values
+                self.labels = df[labels].to_numpy()
         else:
             labels = []
 
@@ -87,7 +87,7 @@ class BaseDataset(Dataset):
             except KeyError:
                 pass
 
-        self.features = df.values
+        self.features = df.to_numpy()
 
     def __len__(self):
         # return len(self.df)
