@@ -13,14 +13,19 @@ def make_dataset_nn(c, df, label=True):
     return ds
 
 
-def make_dataset(c, train_df, valid_df, lightgbm=False):
+def make_dataset(c, train_df, valid_df, is_training=True, lightgbm=False):
     if c.params.n_class == 1:
         labels = [c.params.label_name]
     else:
         labels = [f"{c.params.label_name}_{n}" for n in range(c.params.n_class)]
 
-    train_labels = train_df[labels].to_numpy()
-    valid_labels = valid_df[labels].to_numpy()
+    if is_training:
+        train_labels = train_df[labels].to_numpy()
+        valid_labels = valid_df[labels].to_numpy()
+    else:
+        train_labels = None
+        valid_labels = None
+
 
     for col in ["PassengerId", "fold", "group_fold", "time_fold", c.params.label_name] + labels:
         try:

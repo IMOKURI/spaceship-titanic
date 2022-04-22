@@ -2,12 +2,15 @@ import logging
 import os
 
 import hydra
+import numpy as np
 import pandas as pd
 from omegaconf.errors import ConfigAttributeError
+from scipy.optimize import minimize
 
 import src.utils as utils
-from src.get_score import record_result
+from src.get_score import record_result, optimize_function
 from src.load_data import InputData
+from src.features.helper import *
 from src.run_loop import train_fold_lightgbm, train_fold_nn, train_fold_tabnet, train_fold_xgboost
 
 log = logging.getLogger(__name__)
@@ -37,19 +40,19 @@ def main(c):
         except ConfigAttributeError:
             pass
 
-        log.info(f"========== fold {fold} training ==========")
+        log.info(f"========== fold {fold} training start ==========")
         utils.fix_seed(c.params.seed + fold)
 
         if c.params.training_method == "lightgbm":
-            _oof_df, _, loss = train_fold_lightgbm(c, input.train, fold)
+            _oof_df, loss = train_fold_lightgbm(c, input, fold)
         elif c.params.training_method == "xgboost":
-            _oof_df, _, loss = train_fold_xgboost(c, input.train, fold)
+            _oof_df, loss = train_fold_xgboost(c, input, fold)
         elif c.params.training_method == "tabnet":
-            _oof_df, _, loss = train_fold_tabnet(c, input.train, fold)
+            _oof_df, loss = train_fold_tabnet(c, input, fold)
         else:
-            _oof_df, _, loss = train_fold_nn(c, input, fold, device)
+            _oof_df, loss = train_fold_nn(c, input, fold, device)
 
-        log.info(f"========== fold {fold} result ==========")
+        log.info(f"========== fold {fold} training result ==========")
         record_result(c, _oof_df, fold, loss)
 
         oof_df = pd.concat([oof_df, _oof_df])
@@ -58,11 +61,38 @@ def main(c):
         if c.settings.debug or single_run:
             break
 
+    log.info("========== training result ==========")
+    score = record_result(c, oof_df, c.params.n_fold, losses.avg)
+
+    log.info("========== optimize training result ==========")
+    minimize_result = minimize(
+        optimize_function(c, oof_df[c.params.label_name].to_numpy(), oof_df["base_preds"].to_numpy()),
+        np.array([0.5]),
+        method="Nelder-Mead",
+    )
+    log.info(f"optimize result. -> \n{minimize_result}")
+    score = record_result(c, oof_df, c.params.n_fold, losses.avg)
+
+    oof_df["preds"] = (oof_df["base_preds"] > minimize_result["x"].item()).astype(np.int8)
+
     oof_df.reset_index(drop=True).to_feather("oof_df.f")
     # oof_df[["PassengerId", c.params.label_name, "preds", "fold"]].reset_index(drop=True).to_feather("oof_df.f")
 
-    log.info("========== final result ==========")
-    score = record_result(c, oof_df, c.params.n_fold, losses.avg)
+    log.info(f"oof -> \n{oof_df}")
+
+    if c.settings.inference:
+        log.info("========== inference result ==========")
+
+        cols_base_preds = [col for col in input.test.columns if "base_preds" in col]
+        input.test["base_preds"] = nanmean(input.test[cols_base_preds].to_numpy(), axis=1)
+        input.test["preds"] = (input.test[f"base_preds"] > minimize_result["x"].item()).astype(bool)
+
+        input.sample_submission[c.params.label_name] = input.test["preds"]
+
+        input.test.to_feather("inference.f")
+        input.sample_submission.to_csv("submission.csv", index=False)
+
+        log.info(f"inference -> \n{input.test}")
 
     log.info("Done.")
 

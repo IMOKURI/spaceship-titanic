@@ -34,7 +34,8 @@ log = logging.getLogger(__name__)
 optuna.logging.set_verbosity(optuna.logging.ERROR)
 
 
-def train_fold_lightgbm(c, df, fold, tuning=False):
+def train_fold_lightgbm(c, input, fold, tuning=False):
+    df = input.train
     train_df, valid_df = train_test_split(c, df, fold)
     train_store = Store.train(c, train_df, "train", fold=fold)
     valid_store = Store.train(c, valid_df, "valid", fold=fold)
@@ -127,10 +128,24 @@ def train_fold_lightgbm(c, df, fold, tuning=False):
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
-    return valid_folds, 0, model.best_score["valid"]["binary_logloss"]  # ["rmse"]
+    if c.settings.inference:
+        pred_store = Store.train(c, input.test, "test", is_training=False, fold=fold)
+        pred_folds = make_feature(
+            input.test,
+            pred_store,
+            feature_list=c.params.feature_set,
+            feature_store=c.settings.dirs.feature,
+            fallback_to_none=False,
+        )
+        _, pred_raw_ds, _, _ = make_dataset(c, pred_folds, pred_folds, is_training=False, lightgbm=True)
+        input.test[f"base_preds_{fold}"] = model.predict(pred_raw_ds, num_iteration=model.best_iteration)
+        input.test[f"preds_{fold}"] = (input.test[f"base_preds_{fold}"] > minimize_result["x"].item()).astype(bool)
+
+    return valid_folds, model.best_score["valid"]["binary_logloss"]  # ["rmse"]
 
 
-def train_fold_xgboost(c, df, fold):
+def train_fold_xgboost(c, input, fold):
+    df = input.train
     train_df, valid_df = train_test_split(c, df, fold)
     train_store = Store.train(c, train_df, "train", fold=fold)
     valid_store = Store.train(c, valid_df, "valid", fold=fold)
@@ -178,10 +193,11 @@ def train_fold_xgboost(c, df, fold):
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
-    return valid_folds, 0, model.best_score
+    return valid_folds, model.best_score
 
 
-def train_fold_tabnet(c, df, fold):
+def train_fold_tabnet(c, input, fold):
+    df = input.train
     train_df, valid_df = train_test_split(c, df, fold)
     train_store = Store.train(c, train_df, "train", fold=fold)
     valid_store = Store.train(c, valid_df, "valid", fold=fold)
@@ -234,7 +250,7 @@ def train_fold_tabnet(c, df, fold):
 
     valid_folds["preds"] = (valid_folds["base_preds"] > minimize_result["x"].item()).astype(np.int8)
 
-    return valid_folds, 0, model.best_cost
+    return valid_folds, model.best_cost
 
 
 def train_fold_nn(c, input, fold, device):
@@ -338,7 +354,7 @@ def train_fold_nn(c, input, fold, device):
     else:
         raise Exception("Invalid n_class.")
 
-    return valid_folds, es.best_score, es.best_loss
+    return valid_folds, es.best_loss
 
 
 def inference_lightgbm(df, models):
@@ -354,7 +370,7 @@ def inference_lightgbm(df, models):
     return predictions
 
 
-def inference(c, df, device, models):
+def inference_nn(c, df, device, models):
     predictions = np.zeros((len(df), len(models)), dtype=np.float64)
     # (len(df), len(c.params.pretrained) * c.params.n_fold))
 

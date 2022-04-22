@@ -14,6 +14,8 @@ class InputData:
     def __init__(self, c, use_fold=True):
         self.c = c
         self.train = None
+        self.test = None
+        self.sample_submission = None
 
         for file_name in c.settings.inputs:
             stem = os.path.splitext(file_name)[0]

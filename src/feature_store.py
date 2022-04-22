@@ -46,13 +46,15 @@ class Store:
         # TODO: Cabin
 
         preprocessor = DistTransformer("ordinal")
-        features_categorical = transform_data(c, f"{df_name}-ordinal_categorical_{fold}.npy", df[cols_categorical], preprocessor)
+        features_categorical = transform_data(
+            c, f"{df_name}-ordinal_categorical_{fold}.f", df[cols_categorical], preprocessor
+        )
 
         preprocessor = DistTransformer("standard")
-        features_numeric = transform_data(c, f"{df_name}-standard_numeric_{fold}.npy", df[cols_numeric], preprocessor)
+        features_numeric = transform_data(c, f"{df_name}-standard_numeric_{fold}.f", df[cols_numeric], preprocessor)
 
         features = pd.concat([features_categorical, features_numeric], axis=1)
-        log.debug(f"Pre Encoder count null. ->\n{features.isnull().sum()}")
+        # log.debug(f"Pre Encoder count null. ->\n{features.isnull().sum()}")
 
         preprocessor = LGBMImputer()
         features = transform_data(c, f"{df_name}-lightgbm_imputer_{fold}.f", features, preprocessor)
@@ -60,7 +62,7 @@ class Store:
         if is_training:
             features["Transported"] = df["Transported"].astype(np.int8)
 
-        log.debug(f"LightGBM Imputer count null. ->\n{features.isnull().sum()}")
+        # log.debug(f"LightGBM Imputer count null. ->\n{features.isnull().sum()}")
         log.info(f"Columns of feature_df: {features.columns}, shape: {features.shape}")
 
         instance.feature_df = features

@@ -59,6 +59,8 @@ settings:
   amp: True
   multi_gpu: True
 
+  inference: True
+
 params:
   seed: 440
   n_class: 1

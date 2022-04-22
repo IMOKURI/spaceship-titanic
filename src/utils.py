@@ -33,10 +33,10 @@ def basic_logger():
 
 
 def is_env_notebook():
-    if 'get_ipython' not in globals():
+    if "get_ipython" not in globals():
         return False
     env_name = get_ipython().__class__.__name__
-    if env_name == 'TerminalInteractiveShell':
+    if env_name == "TerminalInteractiveShell":
         return False
     return True
 
@@ -123,9 +123,9 @@ def df_stats(df):
 
 def analyze_column(input_series: pd.Series) -> str:
     if pd.api.types.is_numeric_dtype(input_series):
-        return 'numeric'
+        return "numeric"
     else:
-        return 'categorical'
+        return "categorical"
 
 
 def reduce_mem_usage(df, verbose=True):
@@ -234,11 +234,7 @@ def setup_wandb(c):
         )
         log.info(f"WandB initialized. name: {run.name}, id: {run.id}")
     else:
-        run = wandb.init(
-            entity=c.wandb.entity,
-            project=c.wandb.project,
-            mode="disabled"
-        )
+        run = wandb.init(entity=c.wandb.entity, project=c.wandb.project, mode="disabled")
     return run
 
 

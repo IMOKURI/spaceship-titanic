@@ -28,7 +28,6 @@ def test_lightgbm_imputer_categorical():
     # warnings.warn(f"LightGBM Imputer (categorical) count null. ->\n{res.isnull().sum()}")
 
 
-
 def test_lightgbm_imputer_numeric():
     train = pd.read_csv("../inputs/train.csv")
 
