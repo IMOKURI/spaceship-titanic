@@ -66,7 +66,7 @@ clean-training: ## Remove training artifacts
 	@rm -rf ../outputs ../multirun abort-training.flag
 
 clean-preprocess:  ## Remove preprocess artifacts
-	@rm -rf ../inputs/preprocess/*.{pkl,npy}
+	@rm -rf ../inputs/preprocess/*.{pkl,npy,f}
 
 test: ## Run tests
 	@pytest

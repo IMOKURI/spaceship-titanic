@@ -31,8 +31,8 @@ def test_make_feature():
             feature_store="./tests/features",
             load_from_store=True,
             save_to_store=True,
-            with_target=True,
+            # with_target=True,
         )
 
     assert type(new_df) == pd.DataFrame
-    assert new_df.shape == (len(train), 23)
+    assert new_df.shape == (len(train), 1)

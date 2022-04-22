@@ -6,7 +6,7 @@ import pickle
 import re
 import warnings
 from functools import wraps
-from typing import Callable
+from typing import Callable, Union
 
 import numpy as np
 import pandas as pd
@@ -87,9 +87,9 @@ def fit_instance(_, path, data: np.ndarray, instance):
 
 
 @load_or_transform
-def transform_data(c, path, data: np.ndarray, instance) -> np.ndarray:
-    instance = fit_instance(c, re.sub("\w+-", "", path).replace(".npy", ".pkl"), data.reshape(-1, 1), instance)
-    features = instance.transform(data.reshape(-1, 1))
+def transform_data(c, path, data: Union[np.ndarray, pd.DataFrame], instance) -> Union[np.ndarray, pd.DataFrame]:
+    instance = fit_instance(c, re.sub("\w+-", "", path).replace(".npy", ".pkl"), data, instance)
+    features = instance.transform(data)
 
     log.info(f"Transform data. -> {path}, shape: {features.shape}")
     return features

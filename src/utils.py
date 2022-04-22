@@ -32,6 +32,15 @@ def basic_logger():
     )
 
 
+def is_env_notebook():
+    if 'get_ipython' not in globals():
+        return False
+    env_name = get_ipython().__class__.__name__
+    if env_name == 'TerminalInteractiveShell':
+        return False
+    return True
+
+
 def set_always_catch(catch: bool):
     global _ALWAYS_CATCH
     _ALWAYS_CATCH = catch
@@ -110,6 +119,13 @@ def df_stats(df):
         except TypeError:
             log.warning(f"Skip column. {col}: {df[col].dtype}")
     return pd.DataFrame(stats, columns=["カラム名", "ユニーク値数", "最頻値", "最頻値の出現回数", "最頻値の割合", "欠損値の割合", "タイプ"])
+
+
+def analyze_column(input_series: pd.Series) -> str:
+    if pd.api.types.is_numeric_dtype(input_series):
+        return 'numeric'
+    else:
+        return 'categorical'
 
 
 def reduce_mem_usage(df, verbose=True):
@@ -217,7 +233,13 @@ def setup_wandb(c):
             group=c.wandb.group,
         )
         log.info(f"WandB initialized. name: {run.name}, id: {run.id}")
-        return run
+    else:
+        run = wandb.init(
+            entity=c.wandb.entity,
+            project=c.wandb.project,
+            mode="disabled"
+        )
+    return run
 
 
 def teardown_wandb(c, run, loss, score):
